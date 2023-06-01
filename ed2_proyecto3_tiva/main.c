@@ -21,7 +21,13 @@ uint32_t valor1 = 0;
 uint32_t valor2 = 0;
 uint32_t valor3 = 0;
 uint32_t valor4 = 0;
-uint32_t oscuroMin = 2600; //valor minimo tomado como cubierto para el ADC
+uint32_t oscuroMin1 = 3200; //valor minimo tomado como cubierto para el ADC
+uint32_t oscuroMin2 = 3600;
+uint32_t oscuroMin3 = 2900;
+uint32_t oscuroMin4 = 3300;
+
+#define oscurominModifier 75
+
 char parqueosOcupados = 0;
 
 int Timer0IntHandler(void) {
@@ -95,6 +101,7 @@ int main(void)   {
         SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);
         SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
         SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOC);
+        SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA);
 
         //ADCClockConfigSet(ADC0_BASE, ADC_CLOCK_SRC_PIOSC | ADC_CLOCK_RATE_HALF, 1); //configuracion de adc
 
@@ -125,8 +132,8 @@ int main(void)   {
         GPIOPinTypeADC(GPIO_PORTD_BASE, GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_3);
         GPIOPadConfigSet(GPIO_PORTD_BASE, GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_3, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPD);
 
-        GPIOPinTypeGPIOOutput(GPIO_PORTC_BASE, GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_6 | GPIO_PIN_7);
-        GPIOPinTypeGPIOOutput(GPIO_PORTE_BASE, GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_6 | GPIO_PIN_7);
+        GPIOPinTypeGPIOOutput(GPIO_PORTA_BASE, GPIO_PIN_2 | GPIO_PIN_3 | GPIO_PIN_6 | GPIO_PIN_7);
+        GPIOPinTypeGPIOOutput(GPIO_PORTE_BASE, GPIO_PIN_2 | GPIO_PIN_3 | GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_6 | GPIO_PIN_7);
         GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_3); //configurar luces en la tiva
 
         //configure al timer 0 como una periodica
@@ -152,32 +159,43 @@ int main(void)   {
         while(1) {
             readADC();
 
-            if (valor1 > (oscuroMin)) {parqueosOcupados = parqueosOcupados | 1; }
-            else {parqueosOcupados = parqueosOcupados & 0b1110;}
-
-            if (valor2 > (oscuroMin)) {parqueosOcupados = parqueosOcupados | 2;}
-                        else {                        parqueosOcupados = parqueosOcupados & 0b1101;}
-
-            if (valor3 > (oscuroMin)) {parqueosOcupados = parqueosOcupados | 4;}
-                                    else { parqueosOcupados = parqueosOcupados & 0b1011;}
-
-            if (valor4 > (oscuroMin)) {
-                parqueosOcupados = parqueosOcupados | 8;
+            if (valor1 > (oscuroMin1)) {parqueosOcupados = parqueosOcupados | 1;
+            GPIOPinWrite(GPIO_PORTE_BASE, GPIO_PIN_4 | GPIO_PIN_5, 0x20);
             }
-             else {parqueosOcupados = parqueosOcupados & 0b0111;}
+            else {parqueosOcupados = parqueosOcupados & 0b1110;
+            GPIOPinWrite(GPIO_PORTE_BASE, GPIO_PIN_4 | GPIO_PIN_5, 0x10);}
+
+            if (valor2 > (oscuroMin2)) {parqueosOcupados = parqueosOcupados | 2;
+            GPIOPinWrite(GPIO_PORTE_BASE, GPIO_PIN_2| GPIO_PIN_3, 0x08);}
+                        else {                        parqueosOcupados = parqueosOcupados & 0b1101;
+                        GPIOPinWrite(GPIO_PORTE_BASE, GPIO_PIN_2| GPIO_PIN_3, 0x04); }
+
+            if (valor3 > (oscuroMin3)) {parqueosOcupados = parqueosOcupados | 4;
+            GPIOPinWrite(GPIO_PORTA_BASE, GPIO_PIN_2 | GPIO_PIN_3, 0x08);
+            }
+                                    else { parqueosOcupados = parqueosOcupados & 0b1011;
+                                    GPIOPinWrite(GPIO_PORTA_BASE, GPIO_PIN_2| GPIO_PIN_3, 0x04);}
+
+            if (valor4 > (oscuroMin4)) {
+                parqueosOcupados = parqueosOcupados | 8;
+                GPIOPinWrite(GPIO_PORTA_BASE, GPIO_PIN_6| GPIO_PIN_7, 0x80);            }
+             else {parqueosOcupados = parqueosOcupados & 0b0111;
+             GPIOPinWrite(GPIO_PORTA_BASE, GPIO_PIN_6| GPIO_PIN_7, 0x40);
+             }
 
 
-            char luzOcupado = (parqueosOcupados) << 4;
-            char luzDesocupado = (!parqueosOcupados) << 4;
+            //char luzOcupado = (parqueosOcupados) << 4;
+            //char luzDesocupado = (!parqueosOcupados) << 4;
 
-
-
-            GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_6 | GPIO_PIN_7, luzDesocupado); //Luces verdes
-            GPIOPinWrite(GPIO_PORTE_BASE, GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_6 | GPIO_PIN_7, luzOcupado); //Luces rojas
+            //GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_6 | GPIO_PIN_7, luzDesocupado); //Luces verdes
+            //GPIOPinWrite(GPIO_PORTE_BASE, GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_6 | GPIO_PIN_7, luzOcupado); //Luces rojas
 
             if (!GPIOPinRead(GPIO_PORTF_BASE, GPIO_PIN_4)) { //recalibrar modo luz
                     while(!GPIOPinRead(GPIO_PORTF_BASE, GPIO_PIN_4)); //debounce
-                    oscuroMin = valor1 + 200;}
+                    oscuroMin1 = valor1 + oscurominModifier;
+                    oscuroMin2= valor2 + oscurominModifier;
+                    oscuroMin3 = valor3 + oscurominModifier;
+                    oscuroMin4 = valor4 + oscurominModifier;}
 
             if (TimerIntStatus(TIMER0_BASE, false)) {
                 TimerIntClear(TIMER0_BASE, TIMER_A);
